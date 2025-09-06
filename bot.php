@@ -26,13 +26,15 @@ try {
     // Получаем обновления
     $updates = $telegram->handleGetUpdates();
     
-    if (empty($updates)) {
+    if (empty($updates) || !is_array($updates)) {
         echo "Нет новых сообщений.\n";
         exit;
     }
     
     foreach ($updates as $update) {
-        handleUpdate($update, $telegram);
+        if ($update instanceof Update) {
+            handleUpdate($update, $telegram);
+        }
     }
     
 } catch (TelegramException $e) {

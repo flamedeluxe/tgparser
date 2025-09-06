@@ -1,4 +1,3 @@
 <?php
-// Перенаправляем на корневую директорию
-header('Location: ../index.php');
-exit;
+// Включаем главную страницу
+require_once '../index.php';
