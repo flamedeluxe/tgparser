@@ -1,0 +1,27 @@
+RewriteEngine On
+
+# API маршруты
+RewriteRule ^api/messages/?$ api.php [QSA,L]
+RewriteRule ^api/channels/?$ api.php [QSA,L]
+RewriteRule ^api/stats/?$ api.php [QSA,L]
+RewriteRule ^api/search/?$ api.php [QSA,L]
+
+# Обработка OPTIONS запросов для CORS
+RewriteCond %{REQUEST_METHOD} OPTIONS
+RewriteRule ^(.*)$ api.php [QSA,L]
+
+# Безопасность - запрет доступа к служебным файлам
+<Files "*.sqlite">
+    Order Allow,Deny
+    Deny from all
+</Files>
+
+<Files ".env">
+    Order Allow,Deny
+    Deny from all
+</Files>
+
+<Files "config.env">
+    Order Allow,Deny
+    Deny from all
+</Files>

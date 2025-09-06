@@ -1,0 +1,62 @@
+version: '3.8'
+
+services:
+  # Основное приложение с Nginx и PHP-FPM
+  app:
+    build: .
+    container_name: tgparser-app
+    ports:
+      - "80:80"
+    volumes:
+      - ./bot_data.sqlite:/var/www/html/bot_data.sqlite
+      - ./logs:/var/log/nginx
+      - ./.env:/var/www/html/.env
+    environment:
+      - RUN_BOT=true
+    restart: unless-stopped
+    networks:
+      - tgparser-network
+
+  # Отдельный контейнер для бота (опционально)
+  bot:
+    build: .
+    container_name: tgparser-bot
+    command: php /var/www/html/bot.php
+    volumes:
+      - ./bot_data.sqlite:/var/www/html/bot_data.sqlite
+      - ./.env:/var/www/html/.env
+      - ./logs:/var/log
+    restart: unless-stopped
+    depends_on:
+      - app
+    networks:
+      - tgparser-network
+
+  # Redis для кеширования (опционально)
+  redis:
+    image: redis:7-alpine
+    container_name: tgparser-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    networks:
+      - tgparser-network
+
+  # Мониторинг с Adminer (опционально)
+  adminer:
+    image: adminer:latest
+    container_name: tgparser-adminer
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+    networks:
+      - tgparser-network
+
+volumes:
+  redis_data:
+
+networks:
+  tgparser-network:
+    driver: bridge

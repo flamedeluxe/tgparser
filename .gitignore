@@ -1,0 +1,28 @@
+# Зависимости
+/vendor/
+composer.lock
+
+# Конфигурация
+.env
+config.env
+
+# Логи
+*.log
+bot.log
+
+# База данных
+bot_data.sqlite
+
+# Системные файлы
+.DS_Store
+Thumbs.db
+
+# IDE файлы
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Временные файлы
+*.tmp
+*.temp

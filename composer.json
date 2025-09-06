@@ -1,0 +1,23 @@
+{
+    "name": "tgparser/telegram-bot",
+    "description": "Telegram bot for parsing content from channels",
+    "type": "project",
+    "require": {
+        "php": ">=7.4",
+        "longman/telegram-bot": "^0.70.0",
+        "vlucas/phpdotenv": "^5.5",
+        "firebase/php-jwt": "^6.8"
+    },
+    "require-dev": {
+        "ext-pdo_sqlite": "*"
+    },
+    "autoload": {
+        "psr-4": {
+            "TgParser\\": "src/"
+        }
+    },
+    "scripts": {
+        "start": "php bot.php",
+        "api": "php -S localhost:8000 api.php"
+    }
+}

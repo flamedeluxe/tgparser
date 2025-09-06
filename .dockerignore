@@ -1,0 +1,45 @@
+# Git
+.git
+.gitignore
+
+# Docker
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Логи
+*.log
+logs/
+
+# База данных
+*.sqlite
+bot_data.sqlite
+
+# Конфигурация
+.env
+config.env
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Системные файлы
+.DS_Store
+Thumbs.db
+
+# Временные файлы
+*.tmp
+*.temp
+
+# Node modules (если есть)
+node_modules/
+
+# Composer
+vendor/
+composer.lock
+
+# Документация
+README.md
+API.md
