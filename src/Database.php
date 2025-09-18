@@ -4,6 +4,8 @@ namespace TgParser;
 
 use PDO;
 use PDOException;
+use Exception;
+use Longman\TelegramBot\Request;
 
 class Database
 {
@@ -54,6 +56,7 @@ class Database
             caption TEXT,
             media_type TEXT,
             media_file_id TEXT,
+            media_file_path TEXT,
             message_date INTEGER,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (chat_id) REFERENCES channels(chat_id)
@@ -88,8 +91,8 @@ class Database
     {
         $sql = "INSERT INTO messages (
             message_id, chat_id, from_user, text_content, caption, 
-            media_type, media_file_id, message_date
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+            media_type, media_file_id, media_file_path, message_date
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
         
         $stmt = $this->pdo->prepare($sql);
         return $stmt->execute([
@@ -100,6 +103,7 @@ class Database
             $data['caption'],
             $data['media_type'] ?? null,
             $data['media_file_id'] ?? null,
+            $data['media_file_path'] ?? null,
             $data['message_date']
         ]);
     }
@@ -117,11 +121,16 @@ class Database
     /**
      * Получение сообщений по каналу
      */
-    public function getMessagesByChannel($chatId, $limit = 100)
+    public function getMessagesByChannel($chatId, $limit = 100, $offset = 0)
     {
-        $sql = "SELECT * FROM messages WHERE chat_id = ? ORDER BY message_date DESC LIMIT ?";
+        $sql = "SELECT m.*, c.chat_title, c.chat_type 
+                FROM messages m 
+                LEFT JOIN channels c ON m.chat_id = c.chat_id 
+                WHERE m.chat_id = ? 
+                ORDER BY m.message_date DESC 
+                LIMIT ? OFFSET ?";
         $stmt = $this->pdo->prepare($sql);
-        $stmt->execute([$chatId, $limit]);
+        $stmt->execute([$chatId, $limit, $offset]);
         return $stmt->fetchAll();
     }
 
@@ -216,5 +225,87 @@ class Database
     public function getPdo()
     {
         return $this->pdo;
+    }
+
+    /**
+     * Скачивание медиафайла по file_id
+     */
+    public static function downloadMediaFile($fileId, $mediaType, $chatId, $messageId)
+    {
+        try {
+            // Создаем папку для медиафайлов, если ее нет
+            $mediaDir = __DIR__ . '/../media';
+            if (!is_dir($mediaDir)) {
+                mkdir($mediaDir, 0755, true);
+            }
+
+            // Получаем информацию о файле
+            $file = Request::getFile(['file_id' => $fileId]);
+            
+            if (!$file->isOk()) {
+                error_log("Failed to get file info for file_id: {$fileId}");
+                return null;
+            }
+
+            $fileData = $file->getResult();
+            $filePath = $fileData->getFilePath();
+            
+            if (!$filePath) {
+                error_log("No file path received for file_id: {$fileId}");
+                return null;
+            }
+
+            // Определяем расширение файла
+            $extension = pathinfo($filePath, PATHINFO_EXTENSION);
+            if (empty($extension)) {
+                // Для разных типов медиа задаем расширение по умолчанию
+                switch ($mediaType) {
+                    case 'photo':
+                        $extension = 'jpg';
+                        break;
+                    case 'video':
+                        $extension = 'mp4';
+                        break;
+                    case 'audio':
+                        $extension = 'mp3';
+                        break;
+                    case 'voice':
+                        $extension = 'ogg';
+                        break;
+                    case 'sticker':
+                        $extension = 'webp';
+                        break;
+                    default:
+                        $extension = 'bin';
+                }
+            }
+
+            // Генерируем имя файла
+            $fileName = "{$mediaType}_{$chatId}_{$messageId}_{$fileId}.{$extension}";
+            $localPath = $mediaDir . '/' . $fileName;
+
+            // Скачиваем файл
+            $botToken = $_ENV['BOT_TOKEN'] ?? '';
+            $downloadUrl = "https://api.telegram.org/file/bot{$botToken}/{$filePath}";
+            
+            $fileContent = file_get_contents($downloadUrl);
+            if ($fileContent === false) {
+                error_log("Failed to download file from: {$downloadUrl}");
+                return null;
+            }
+
+            // Сохраняем файл
+            if (file_put_contents($localPath, $fileContent) === false) {
+                error_log("Failed to save file to: {$localPath}");
+                return null;
+            }
+
+            // Возвращаем относительный путь
+            return 'media/' . $fileName;
+
+        } catch (Exception $e) {
+            error_log("Error downloading media file: " . $e->getMessage());
+            return null;
+        }
     }
 }

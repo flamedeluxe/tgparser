@@ -54,30 +54,127 @@ try {
 }
 
 /**
+ * Скачивание медиафайла по file_id
+ */
+function downloadMediaFile($telegram, $fileId, $mediaType, $chatId, $messageId)
+{
+    try {
+        // Создаем папку для медиафайлов, если ее нет
+        $mediaDir = __DIR__ . '/../media';
+        if (!is_dir($mediaDir)) {
+            mkdir($mediaDir, 0755, true);
+        }
+
+        // Получаем информацию о файле
+        $file = Request::getFile(['file_id' => $fileId]);
+        
+        if (!$file->isOk()) {
+            error_log("Failed to get file info for file_id: {$fileId}");
+            return null;
+        }
+
+        $fileData = $file->getResult();
+        $filePath = $fileData->getFilePath();
+        
+        if (!$filePath) {
+            error_log("No file path received for file_id: {$fileId}");
+            return null;
+        }
+
+        // Определяем расширение файла
+        $extension = pathinfo($filePath, PATHINFO_EXTENSION);
+        if (empty($extension)) {
+            // Для разных типов медиа задаем расширение по умолчанию
+            switch ($mediaType) {
+                case 'photo':
+                    $extension = 'jpg';
+                    break;
+                case 'video':
+                    $extension = 'mp4';
+                    break;
+                case 'audio':
+                    $extension = 'mp3';
+                    break;
+                case 'voice':
+                    $extension = 'ogg';
+                    break;
+                case 'sticker':
+                    $extension = 'webp';
+                    break;
+                default:
+                    $extension = 'bin';
+            }
+        }
+
+        // Генерируем имя файла
+        $fileName = "{$mediaType}_{$chatId}_{$messageId}_" . substr($fileId, -10) . ".{$extension}";
+        $localPath = $mediaDir . '/' . $fileName;
+
+        // Скачиваем файл
+        $botToken = $_ENV['BOT_TOKEN'] ?? '7871178627:AAFY2IYhkaf0GdlDBRC8Tvg26SXRMMVvwi0';
+        $downloadUrl = "https://api.telegram.org/file/bot{$botToken}/{$filePath}";
+        
+        $fileContent = file_get_contents($downloadUrl);
+        if ($fileContent === false) {
+            error_log("Failed to download file from: {$downloadUrl}");
+            return null;
+        }
+
+        // Сохраняем файл
+        if (file_put_contents($localPath, $fileContent) === false) {
+            error_log("Failed to save file to: {$localPath}");
+            return null;
+        }
+
+        // Возвращаем относительный путь
+        return '../media/' . $fileName;
+
+    } catch (Exception $e) {
+        error_log("Error downloading media file: " . $e->getMessage());
+        return null;
+    }
+}
+
+/**
  * Обработка входящих обновлений
  */
 function handleUpdate(Update $update, Telegram $telegram, Database $database) {
     $message = $update->getMessage();
     
-    if (!$message) {
-        return;
+    // Обрабатываем обычные сообщения
+    if ($message) {
+        $chat_id = $message->getChat()->getId();
+        $text = $message->getText();
+        $chat_type = $message->getChat()->getType();
+        
+        // Логируем информацию о сообщении
+        error_log("Получено сообщение в чате {$chat_id} (тип: {$chat_type}): {$text}");
+        
+        // Если это канал или группа, парсим контент
+        if (in_array($chat_type, ['channel', 'group', 'supergroup'])) {
+            parseChannelContent($message, $telegram, $database);
+        }
+        
+        // Обработка команд
+        if ($text && strpos($text, '/') === 0) {
+            handleCommand($text, $chat_id, $telegram, $database);
+        }
     }
     
-    $chat_id = $message->getChat()->getId();
-    $text = $message->getText();
-    $chat_type = $message->getChat()->getType();
-    
-    // Логируем информацию о сообщении
-    error_log("Получено сообщение в чате {$chat_id} (тип: {$chat_type}): {$text}");
-    
-    // Если это канал или группа, парсим контент
-    if (in_array($chat_type, ['channel', 'group', 'supergroup'])) {
-        parseChannelContent($message, $telegram, $database);
-    }
-    
-    // Обработка команд
-    if ($text && strpos($text, '/') === 0) {
-        handleCommand($text, $chat_id, $telegram, $database);
+    // Обрабатываем сообщения из каналов (channel_post)
+    $update_data = $update->getRawData();
+    if (isset($update_data['channel_post'])) {
+        $channel_post_data = $update_data['channel_post'];
+        $chat_id = $channel_post_data['chat']['id'];
+        $text = $channel_post_data['text'] ?? '';
+        $chat_type = $channel_post_data['chat']['type'];
+        $chat_title = $channel_post_data['chat']['title'] ?? 'Unknown Channel';
+        
+        // Логируем информацию о сообщении из канала
+        error_log("Получено сообщение из канала {$chat_id} (тип: {$chat_type}): {$text}");
+        
+        // Парсим контент из канала напрямую
+        parseChannelContentFromData($channel_post_data, $telegram, $database);
     }
 }
 
@@ -105,26 +202,68 @@ function parseChannelContent($message, Telegram $telegram, Database $database) {
         'message_date' => $message->getDate(),
     ];
     
-    // Проверяем наличие медиа
+    // Проверяем наличие медиа и скачиваем файлы
     if ($message->getPhoto()) {
         $content['media_type'] = 'photo';
         $photos = $message->getPhoto();
-        $content['media_file_id'] = end($photos)->getFileId();
+        $fileId = end($photos)->getFileId();
+        $content['media_file_id'] = $fileId;
+        
+        // Скачиваем файл
+        $filePath = downloadMediaFile($telegram, $fileId, 'photo', $chat_id, $message_id);
+        if ($filePath) {
+            $content['media_file_path'] = $filePath;
+        }
     } elseif ($message->getVideo()) {
         $content['media_type'] = 'video';
-        $content['media_file_id'] = $message->getVideo()->getFileId();
+        $fileId = $message->getVideo()->getFileId();
+        $content['media_file_id'] = $fileId;
+        
+        // Скачиваем файл
+        $filePath = downloadMediaFile($telegram, $fileId, 'video', $chat_id, $message_id);
+        if ($filePath) {
+            $content['media_file_path'] = $filePath;
+        }
     } elseif ($message->getDocument()) {
         $content['media_type'] = 'document';
-        $content['media_file_id'] = $message->getDocument()->getFileId();
+        $fileId = $message->getDocument()->getFileId();
+        $content['media_file_id'] = $fileId;
+        
+        // Скачиваем файл
+        $filePath = downloadMediaFile($telegram, $fileId, 'document', $chat_id, $message_id);
+        if ($filePath) {
+            $content['media_file_path'] = $filePath;
+        }
     } elseif ($message->getAudio()) {
         $content['media_type'] = 'audio';
-        $content['media_file_id'] = $message->getAudio()->getFileId();
+        $fileId = $message->getAudio()->getFileId();
+        $content['media_file_id'] = $fileId;
+        
+        // Скачиваем файл
+        $filePath = downloadMediaFile($telegram, $fileId, 'audio', $chat_id, $message_id);
+        if ($filePath) {
+            $content['media_file_path'] = $filePath;
+        }
     } elseif ($message->getVoice()) {
         $content['media_type'] = 'voice';
-        $content['media_file_id'] = $message->getVoice()->getFileId();
+        $fileId = $message->getVoice()->getFileId();
+        $content['media_file_id'] = $fileId;
+        
+        // Скачиваем файл
+        $filePath = downloadMediaFile($telegram, $fileId, 'voice', $chat_id, $message_id);
+        if ($filePath) {
+            $content['media_file_path'] = $filePath;
+        }
     } elseif ($message->getSticker()) {
         $content['media_type'] = 'sticker';
-        $content['media_file_id'] = $message->getSticker()->getFileId();
+        $fileId = $message->getSticker()->getFileId();
+        $content['media_file_id'] = $fileId;
+        
+        // Скачиваем файл
+        $filePath = downloadMediaFile($telegram, $fileId, 'sticker', $chat_id, $message_id);
+        if ($filePath) {
+            $content['media_file_path'] = $filePath;
+        }
     }
     
     // Сохраняем сообщение в базу данных
@@ -221,4 +360,98 @@ function handleCommand($text, $chat_id, Telegram $telegram, Database $database) 
         'chat_id' => $chat_id,
         'text' => $response,
     ]);
+}
+
+/**
+ * Парсинг контента канала из данных
+ */
+function parseChannelContentFromData($channel_post_data, Telegram $telegram, Database $database) {
+    $chat_id = $channel_post_data['chat']['id'];
+    $message_id = $channel_post_data['message_id'];
+    $text = $channel_post_data['text'] ?? '';
+    $caption = $channel_post_data['caption'] ?? '';
+    
+    // Сохраняем информацию о канале
+    $chat_title = $channel_post_data['chat']['title'] ?? 'Unknown Channel';
+    $chat_type = $channel_post_data['chat']['type'];
+    $database->saveChannel($chat_id, $chat_title, $chat_type);
+    
+    // Собираем информацию о сообщении
+    $content = [
+        'message_id' => $message_id,
+        'chat_id' => $chat_id,
+        'from_user' => 'Channel',
+        'text_content' => $text,
+        'caption' => $caption,
+        'message_date' => $channel_post_data['date'],
+    ];
+    
+    // Проверяем наличие медиа и скачиваем файлы
+    if (isset($channel_post_data['photo'])) {
+        $content['media_type'] = 'photo';
+        $photos = $channel_post_data['photo'];
+        $fileId = end($photos)['file_id'];
+        $content['media_file_id'] = $fileId;
+        
+        // Скачиваем файл
+        $filePath = downloadMediaFile($telegram, $fileId, 'photo', $chat_id, $message_id);
+        if ($filePath) {
+            $content['media_file_path'] = $filePath;
+        }
+    } elseif (isset($channel_post_data['video'])) {
+        $content['media_type'] = 'video';
+        $fileId = $channel_post_data['video']['file_id'];
+        $content['media_file_id'] = $fileId;
+        
+        // Скачиваем файл
+        $filePath = downloadMediaFile($telegram, $fileId, 'video', $chat_id, $message_id);
+        if ($filePath) {
+            $content['media_file_path'] = $filePath;
+        }
+    } elseif (isset($channel_post_data['document'])) {
+        $content['media_type'] = 'document';
+        $fileId = $channel_post_data['document']['file_id'];
+        $content['media_file_id'] = $fileId;
+        
+        // Скачиваем файл
+        $filePath = downloadMediaFile($telegram, $fileId, 'document', $chat_id, $message_id);
+        if ($filePath) {
+            $content['media_file_path'] = $filePath;
+        }
+    } elseif (isset($channel_post_data['audio'])) {
+        $content['media_type'] = 'audio';
+        $fileId = $channel_post_data['audio']['file_id'];
+        $content['media_file_id'] = $fileId;
+        
+        // Скачиваем файл
+        $filePath = downloadMediaFile($telegram, $fileId, 'audio', $chat_id, $message_id);
+        if ($filePath) {
+            $content['media_file_path'] = $filePath;
+        }
+    } elseif (isset($channel_post_data['voice'])) {
+        $content['media_type'] = 'voice';
+        $fileId = $channel_post_data['voice']['file_id'];
+        $content['media_file_id'] = $fileId;
+        
+        // Скачиваем файл
+        $filePath = downloadMediaFile($telegram, $fileId, 'voice', $chat_id, $message_id);
+        if ($filePath) {
+            $content['media_file_path'] = $filePath;
+        }
+    } elseif (isset($channel_post_data['sticker'])) {
+        $content['media_type'] = 'sticker';
+        $fileId = $channel_post_data['sticker']['file_id'];
+        $content['media_file_id'] = $fileId;
+        
+        // Скачиваем файл
+        $filePath = downloadMediaFile($telegram, $fileId, 'sticker', $chat_id, $message_id);
+        if ($filePath) {
+            $content['media_file_path'] = $filePath;
+        }
+    }
+    
+    // Сохраняем сообщение в базу данных
+    $database->saveMessage($content);
+    
+    error_log("Сообщение из канала сохранено: {$text}");
 }

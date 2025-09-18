@@ -50,6 +50,24 @@ GET /api/messages?limit=10&offset=20&api_key=your_api_key
 
 #### Ответ:
 
+Поля объекта сообщения:
+
+| Поле | Тип | Описание |
+|------|-----|----------|
+| `id` | integer | Уникальный ID записи в БД |
+| `message_id` | string | ID сообщения в Telegram |
+| `chat_id` | string | ID чата/канала |
+| `from_user` | string | Имя пользователя отправителя |
+| `text_content` | string | Текст сообщения |
+| `caption` | string | Подпись к медиафайлу |
+| `media_type` | string | Тип медиа (photo, video, document, audio, voice, sticker) |
+| `media_file_id` | string | Telegram file_id медиафайла |
+| `media_file_path` | string | Локальный путь к скачанному медиафайлу |
+| `message_date` | integer | Unix timestamp даты сообщения |
+| `created_at` | string | Дата добавления в БД |
+| `chat_title` | string | Название канала/группы |
+| `chat_type` | string | Тип чата (channel, group, supergroup) |
+
 ```json
 {
   "success": true,
@@ -64,6 +82,7 @@ GET /api/messages?limit=10&offset=20&api_key=your_api_key
         "caption": "Подпись к медиа",
         "media_type": "photo",
         "media_file_id": "BAADBAADrwADBREAAYag",
+        "media_file_path": "media/photo_-1001234567890_123_BAADrwAAag.jpg",
         "message_date": 1640995200,
         "created_at": "2023-01-01 12:00:00",
         "chat_title": "Название канала",
