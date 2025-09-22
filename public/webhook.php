@@ -59,8 +59,8 @@ try {
 function downloadMediaFile($telegram, $fileId, $mediaType, $chatId, $messageId)
 {
     try {
-        // Создаем папку для медиафайлов, если ее нет
-        $mediaDir = __DIR__ . '/../media';
+        // Создаем папку для медиафайлов, если ее нет (внутри public)
+        $mediaDir = __DIR__ . '/media';
         if (!is_dir($mediaDir)) {
             mkdir($mediaDir, 0755, true);
         }
@@ -126,8 +126,8 @@ function downloadMediaFile($telegram, $fileId, $mediaType, $chatId, $messageId)
             return null;
         }
 
-        // Возвращаем относительный путь
-        return '../media/' . $fileName;
+        // Возвращаем относительный путь от корня сайта
+        return 'media/' . $fileName;
 
     } catch (Exception $e) {
         error_log("Error downloading media file: " . $e->getMessage());
