@@ -63,6 +63,19 @@ class Database
             FOREIGN KEY (chat_id) REFERENCES channels(chat_id)
         );
 
+        CREATE TABLE IF NOT EXISTS message_media (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            message_id TEXT NOT NULL,
+            chat_id TEXT NOT NULL,
+            media_type TEXT NOT NULL,
+            media_file_id TEXT NOT NULL,
+            media_file_path TEXT,
+            media_url TEXT,
+            media_order INTEGER DEFAULT 0,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (message_id, chat_id) REFERENCES messages(message_id, chat_id)
+        );
+
         CREATE TABLE IF NOT EXISTS parsing_stats (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             total_messages INTEGER DEFAULT 0,
@@ -219,6 +232,36 @@ class Database
         $sql = "DELETE FROM messages WHERE created_at < datetime('now', '-{$days} days')";
         $stmt = $this->pdo->prepare($sql);
         return $stmt->execute();
+    }
+
+    /**
+     * Сохранение медиафайла
+     */
+    public function saveMediaFile($messageId, $chatId, $mediaType, $fileId, $filePath, $mediaUrl, $order = 0)
+    {
+        $sql = "INSERT INTO message_media (
+            message_id, chat_id, media_type, media_file_id, 
+            media_file_path, media_url, media_order
+        ) VALUES (?, ?, ?, ?, ?, ?, ?)";
+        
+        $stmt = $this->pdo->prepare($sql);
+        return $stmt->execute([
+            $messageId, $chatId, $mediaType, $fileId, 
+            $filePath, $mediaUrl, $order
+        ]);
+    }
+
+    /**
+     * Получение медиафайлов сообщения
+     */
+    public function getMessageMedia($messageId, $chatId)
+    {
+        $sql = "SELECT * FROM message_media 
+                WHERE message_id = ? AND chat_id = ? 
+                ORDER BY media_order ASC";
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->execute([$messageId, $chatId]);
+        return $stmt->fetchAll();
     }
 
     /**
