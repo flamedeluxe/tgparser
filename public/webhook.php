@@ -126,8 +126,11 @@ function downloadMediaFile($telegram, $fileId, $mediaType, $chatId, $messageId)
             return null;
         }
 
-        // Возвращаем относительный путь от корня сайта
-        return 'media/' . $fileName;
+        // Возвращаем массив с локальным путем и оригинальной ссылкой
+        return [
+            'local_path' => 'media/' . $fileName,
+            'original_url' => $downloadUrl
+        ];
 
     } catch (Exception $e) {
         error_log("Error downloading media file: " . $e->getMessage());
@@ -210,9 +213,10 @@ function parseChannelContent($message, Telegram $telegram, Database $database) {
         $content['media_file_id'] = $fileId;
         
         // Скачиваем файл
-        $filePath = downloadMediaFile($telegram, $fileId, 'photo', $chat_id, $message_id);
-        if ($filePath) {
-            $content['media_file_path'] = $filePath;
+        $fileResult = downloadMediaFile($telegram, $fileId, 'photo', $chat_id, $message_id);
+        if ($fileResult) {
+            $content['media_file_path'] = $fileResult['local_path'];
+            $content['media_url'] = $fileResult['original_url'];
         }
     } elseif ($message->getVideo()) {
         $content['media_type'] = 'video';
@@ -220,9 +224,10 @@ function parseChannelContent($message, Telegram $telegram, Database $database) {
         $content['media_file_id'] = $fileId;
         
         // Скачиваем файл
-        $filePath = downloadMediaFile($telegram, $fileId, 'video', $chat_id, $message_id);
-        if ($filePath) {
-            $content['media_file_path'] = $filePath;
+        $fileResult = downloadMediaFile($telegram, $fileId, 'video', $chat_id, $message_id);
+        if ($fileResult) {
+            $content['media_file_path'] = $fileResult['local_path'];
+            $content['media_url'] = $fileResult['original_url'];
         }
     } elseif ($message->getDocument()) {
         $content['media_type'] = 'document';
@@ -230,9 +235,10 @@ function parseChannelContent($message, Telegram $telegram, Database $database) {
         $content['media_file_id'] = $fileId;
         
         // Скачиваем файл
-        $filePath = downloadMediaFile($telegram, $fileId, 'document', $chat_id, $message_id);
-        if ($filePath) {
-            $content['media_file_path'] = $filePath;
+        $fileResult = downloadMediaFile($telegram, $fileId, 'document', $chat_id, $message_id);
+        if ($fileResult) {
+            $content['media_file_path'] = $fileResult['local_path'];
+            $content['media_url'] = $fileResult['original_url'];
         }
     } elseif ($message->getAudio()) {
         $content['media_type'] = 'audio';
@@ -240,9 +246,10 @@ function parseChannelContent($message, Telegram $telegram, Database $database) {
         $content['media_file_id'] = $fileId;
         
         // Скачиваем файл
-        $filePath = downloadMediaFile($telegram, $fileId, 'audio', $chat_id, $message_id);
-        if ($filePath) {
-            $content['media_file_path'] = $filePath;
+        $fileResult = downloadMediaFile($telegram, $fileId, 'audio', $chat_id, $message_id);
+        if ($fileResult) {
+            $content['media_file_path'] = $fileResult['local_path'];
+            $content['media_url'] = $fileResult['original_url'];
         }
     } elseif ($message->getVoice()) {
         $content['media_type'] = 'voice';
@@ -250,9 +257,10 @@ function parseChannelContent($message, Telegram $telegram, Database $database) {
         $content['media_file_id'] = $fileId;
         
         // Скачиваем файл
-        $filePath = downloadMediaFile($telegram, $fileId, 'voice', $chat_id, $message_id);
-        if ($filePath) {
-            $content['media_file_path'] = $filePath;
+        $fileResult = downloadMediaFile($telegram, $fileId, 'voice', $chat_id, $message_id);
+        if ($fileResult) {
+            $content['media_file_path'] = $fileResult['local_path'];
+            $content['media_url'] = $fileResult['original_url'];
         }
     } elseif ($message->getSticker()) {
         $content['media_type'] = 'sticker';
@@ -260,9 +268,10 @@ function parseChannelContent($message, Telegram $telegram, Database $database) {
         $content['media_file_id'] = $fileId;
         
         // Скачиваем файл
-        $filePath = downloadMediaFile($telegram, $fileId, 'sticker', $chat_id, $message_id);
-        if ($filePath) {
-            $content['media_file_path'] = $filePath;
+        $fileResult = downloadMediaFile($telegram, $fileId, 'sticker', $chat_id, $message_id);
+        if ($fileResult) {
+            $content['media_file_path'] = $fileResult['local_path'];
+            $content['media_url'] = $fileResult['original_url'];
         }
     }
     
@@ -394,9 +403,10 @@ function parseChannelContentFromData($channel_post_data, Telegram $telegram, Dat
         $content['media_file_id'] = $fileId;
         
         // Скачиваем файл
-        $filePath = downloadMediaFile($telegram, $fileId, 'photo', $chat_id, $message_id);
-        if ($filePath) {
-            $content['media_file_path'] = $filePath;
+        $fileResult = downloadMediaFile($telegram, $fileId, 'photo', $chat_id, $message_id);
+        if ($fileResult) {
+            $content['media_file_path'] = $fileResult['local_path'];
+            $content['media_url'] = $fileResult['original_url'];
         }
     } elseif (isset($channel_post_data['video'])) {
         $content['media_type'] = 'video';
@@ -404,9 +414,10 @@ function parseChannelContentFromData($channel_post_data, Telegram $telegram, Dat
         $content['media_file_id'] = $fileId;
         
         // Скачиваем файл
-        $filePath = downloadMediaFile($telegram, $fileId, 'video', $chat_id, $message_id);
-        if ($filePath) {
-            $content['media_file_path'] = $filePath;
+        $fileResult = downloadMediaFile($telegram, $fileId, 'video', $chat_id, $message_id);
+        if ($fileResult) {
+            $content['media_file_path'] = $fileResult['local_path'];
+            $content['media_url'] = $fileResult['original_url'];
         }
     } elseif (isset($channel_post_data['document'])) {
         $content['media_type'] = 'document';
@@ -414,9 +425,10 @@ function parseChannelContentFromData($channel_post_data, Telegram $telegram, Dat
         $content['media_file_id'] = $fileId;
         
         // Скачиваем файл
-        $filePath = downloadMediaFile($telegram, $fileId, 'document', $chat_id, $message_id);
-        if ($filePath) {
-            $content['media_file_path'] = $filePath;
+        $fileResult = downloadMediaFile($telegram, $fileId, 'document', $chat_id, $message_id);
+        if ($fileResult) {
+            $content['media_file_path'] = $fileResult['local_path'];
+            $content['media_url'] = $fileResult['original_url'];
         }
     } elseif (isset($channel_post_data['audio'])) {
         $content['media_type'] = 'audio';
@@ -424,9 +436,10 @@ function parseChannelContentFromData($channel_post_data, Telegram $telegram, Dat
         $content['media_file_id'] = $fileId;
         
         // Скачиваем файл
-        $filePath = downloadMediaFile($telegram, $fileId, 'audio', $chat_id, $message_id);
-        if ($filePath) {
-            $content['media_file_path'] = $filePath;
+        $fileResult = downloadMediaFile($telegram, $fileId, 'audio', $chat_id, $message_id);
+        if ($fileResult) {
+            $content['media_file_path'] = $fileResult['local_path'];
+            $content['media_url'] = $fileResult['original_url'];
         }
     } elseif (isset($channel_post_data['voice'])) {
         $content['media_type'] = 'voice';
@@ -434,9 +447,10 @@ function parseChannelContentFromData($channel_post_data, Telegram $telegram, Dat
         $content['media_file_id'] = $fileId;
         
         // Скачиваем файл
-        $filePath = downloadMediaFile($telegram, $fileId, 'voice', $chat_id, $message_id);
-        if ($filePath) {
-            $content['media_file_path'] = $filePath;
+        $fileResult = downloadMediaFile($telegram, $fileId, 'voice', $chat_id, $message_id);
+        if ($fileResult) {
+            $content['media_file_path'] = $fileResult['local_path'];
+            $content['media_url'] = $fileResult['original_url'];
         }
     } elseif (isset($channel_post_data['sticker'])) {
         $content['media_type'] = 'sticker';
@@ -444,9 +458,10 @@ function parseChannelContentFromData($channel_post_data, Telegram $telegram, Dat
         $content['media_file_id'] = $fileId;
         
         // Скачиваем файл
-        $filePath = downloadMediaFile($telegram, $fileId, 'sticker', $chat_id, $message_id);
-        if ($filePath) {
-            $content['media_file_path'] = $filePath;
+        $fileResult = downloadMediaFile($telegram, $fileId, 'sticker', $chat_id, $message_id);
+        if ($fileResult) {
+            $content['media_file_path'] = $fileResult['local_path'];
+            $content['media_url'] = $fileResult['original_url'];
         }
     }
     

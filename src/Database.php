@@ -57,6 +57,7 @@ class Database
             media_type TEXT,
             media_file_id TEXT,
             media_file_path TEXT,
+            media_url TEXT,
             message_date INTEGER,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (chat_id) REFERENCES channels(chat_id)
@@ -91,8 +92,8 @@ class Database
     {
         $sql = "INSERT INTO messages (
             message_id, chat_id, from_user, text_content, caption, 
-            media_type, media_file_id, media_file_path, message_date
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+            media_type, media_file_id, media_file_path, media_url, message_date
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         
         $stmt = $this->pdo->prepare($sql);
         return $stmt->execute([
@@ -104,6 +105,7 @@ class Database
             $data['media_type'] ?? null,
             $data['media_file_id'] ?? null,
             $data['media_file_path'] ?? null,
+            $data['media_url'] ?? null,
             $data['message_date']
         ]);
     }
